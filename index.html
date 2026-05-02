@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EvoXplain Labs — XAI infrastructure for high-stakes ML</title>
+<meta name="description" content="EvoXplain detects mechanistic non-identifiability in machine learning models — a falsifiable framework for model risk in pharma, biotech, financial services, and AI regulation.">
+<meta name="theme-color" content="#0a0a0b">
+<meta property="og:title" content="EvoXplain Labs — XAI infrastructure for high-stakes ML">
+<meta property="og:description" content="Detect when ML explanations are pipeline artefacts rather than mechanistic reality.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.evoxplain.com">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #0a0a0b;
+  --bg-elevated: #131316;
+  --surface: #1a1a1f;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #e8e8e6;
+  --text-muted: #8a8a87;
+  --text-faint: #555553;
+  --accent: #ffae00;
+  --accent-dim: rgba(255, 174, 0, 0.12);
+  --accent-glow: rgba(255, 174, 0, 0.4);
+  --danger: #ff5f56;
+  --success: #5ad17a;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --serif: 'IBM Plex Serif', Georgia, serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+::selection { background: var(--accent); color: #0a0a0b; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 400;
+  line-height: 1.5;
+  font-feature-settings: 'ss01', 'ss02';
+  background-image:
+    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(255, 174, 0, 0.07), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 30%, rgba(255, 174, 0, 0.03), transparent 60%);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Subtle grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.4;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 3px);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 32px;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Status bar ─────────────────────────────── */
+.statusbar {
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  padding: 10px 0;
+  background: rgba(10, 10, 11, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.statusbar .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.statusbar-right { color: var(--text-faint); }
+.status-led {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+  margin-right: 10px;
+  animation: pulse 2.4s ease-in-out infinite;
+  vertical-align: 1px;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ── Nav ────────────────────────────────────── */
+nav.primary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-mark { width: 22px; height: 22px; }
+.nav-links {
+  display: flex;
+  gap: 32px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+  position: relative;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-links a::before {
+  content: '';
+  position: absolute;
+  left: -14px; top: 50%;
+  width: 6px; height: 1px;
+  background: var(--text-faint);
+}
+
+/* ── Hero ───────────────────────────────────── */
+.hero {
+  padding: 140px 0 100px;
+  position: relative;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 50%;
+  width: 1px; height: 60%;
+  background: linear-gradient(180deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+  transform: translateY(-50%);
+}
+.hero-tag {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 36px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hero-tag::before {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--accent);
+}
+.hero h1 {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: clamp(34px, 5.4vw, 62px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  max-width: 920px;
+  margin-bottom: 36px;
+}
+.hero h1 em {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+.hero-sub {
+  font-size: 18px;
+  color: var(--text-muted);
+  max-width: 620px;
+  line-height: 1.65;
+  margin-bottom: 48px;
+}
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 14px 22px;
+  text-decoration: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.18s ease;
+  background: transparent;
+  letter-spacing: 0.01em;
+}
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a0b;
+  border-color: var(--accent);
+  font-weight: 500;
+}
+.btn-primary:hover {
+  background: transparent;
+  color: var(--accent);
+}
+.btn .arr { transition: transform 0.18s; }
+.btn:hover .arr { transform: translateX(3px); }
+
+/* ── Section ────────────────────────────────── */
+section {
+  padding: 110px 0;
+  border-top: 1px solid var(--border);
+  position: relative;
+}
+.section-head {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 40px;
+  margin-bottom: 56px;
+  align-items: start;
+}
+.section-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+  padding-top: 8px;
+}
+.section-num span { color: var(--accent); }
+.section-title {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: clamp(26px, 3.2vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 22px;
+  max-width: 820px;
+}
+.section-title em {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--accent);
+}
+.section-lead {
+  font-size: 16.5px;
+  color: var(--text-muted);
+  max-width: 700px;
+  line-height: 1.7;
+}
+
+/* ── Terminal block ─────────────────────────── */
+.terminal {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.85;
+  margin-top: 32px;
+  position: relative;
+}
+.terminal-header {
+  border-bottom: 1px solid var(--border);
+  padding: 11px 18px;
+  color: var(--text-faint);
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  letter-spacing: 0.05em;
+}
+.terminal-dots {
+  display: flex; gap: 6px;
+}
+.terminal-dots span {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  opacity: 0.4;
+}
+.terminal-dots span:first-child { background: var(--danger); opacity: 0.7; }
+.terminal-dots span:nth-child(2) { background: var(--accent); opacity: 0.7; }
+.terminal-dots span:nth-child(3) { background: var(--success); opacity: 0.7; }
+.terminal-body {
+  padding: 24px 28px;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+  overflow-x: auto;
+}
+.terminal-body .out  { color: var(--text); }
+.terminal-body .ok   { color: var(--success); }
+.terminal-body .warn { color: var(--accent); }
+.terminal-body .fail { color: var(--danger); }
+.terminal-body .pmt  { color: var(--accent); }
+.terminal-body .dim  { color: var(--text-faint); }
+.terminal-body .key  { color: var(--accent); }
+
+/* ── Stats ──────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--border);
+  margin-top: 16px;
+}
+.stat {
+  padding: 32px 28px;
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+.stat:last-child { border-right: none; }
+.stat-value {
+  font-family: var(--mono);
+  font-size: 38px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 14px;
+}
+.stat-value sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  vertical-align: 0;
+  margin-left: 4px;
+  letter-spacing: 0;
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+/* ── Cases ──────────────────────────────────── */
+.cases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+.case {
+  background: var(--bg);
+  padding: 36px 30px;
+  transition: background 0.22s ease;
+  display: flex;
+  flex-direction: column;
+}
+.case:hover { background: var(--bg-elevated); }
+.case-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  margin-bottom: 22px;
+}
+.case h3 {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  letter-spacing: -0.005em;
+}
+.case p {
+  color: var(--text-muted);
+  font-size: 14.5px;
+  line-height: 1.65;
+  flex-grow: 1;
+}
+.case-reg {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+}
+
+/* ── Battery list ───────────────────────────── */
+.battery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-top: 16px;
+}
+.test {
+  background: var(--bg);
+  padding: 22px 24px;
+  font-family: var(--mono);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.test-id {
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.test-name {
+  color: var(--text);
+  line-height: 1.4;
+}
+.test-status {
+  font-size: 10.5px;
+  color: var(--success);
+  letter-spacing: 0.08em;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.test-status::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(90, 209, 122, 0.6);
+}
+
+/* ── Contact ────────────────────────────────── */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-top: 16px;
+}
+.contact-card {
+  background: var(--bg);
+  padding: 36px 32px;
+}
+.contact-card h4 {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  margin-bottom: 18px;
+}
+.contact-card p {
+  color: var(--text-muted);
+  font-size: 14.5px;
+  line-height: 1.65;
+  margin-bottom: 20px;
+}
+.contact-card a.email {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+  padding-bottom: 2px;
+  transition: opacity 0.15s;
+}
+.contact-card a.email:hover { opacity: 0.75; }
+
+/* ── Footer ─────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 64px 0 32px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 56px;
+}
+.footer-col h4 {
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  font-weight: 500;
+}
+.footer-col a {
+  color: var(--text-muted);
+  text-decoration: none;
+  display: block;
+  margin-bottom: 10px;
+  transition: color 0.15s;
+  font-size: 13px;
+}
+.footer-col a:hover { color: var(--accent); }
+.footer-col p {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  max-width: 360px;
+}
+.footer-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 28px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-faint);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.legal-notice {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 32px 0;
+  padding: 18px 22px;
+  border: 1px dashed var(--border);
+  line-height: 1.7;
+  background: rgba(255, 174, 0, 0.02);
+}
+.legal-notice strong { color: var(--accent); font-weight: 500; }
+
+/* ── Responsive ─────────────────────────────── */
+@media (max-width: 880px) {
+  .stats-grid, .cases, .battery, .contact-grid { grid-template-columns: 1fr; }
+  .stat { border-right: none; border-bottom: 1px solid var(--border); }
+  .stat:last-child { border-bottom: none; }
+  .footer-grid { grid-template-columns: 1fr; gap: 36px; }
+  .nav-links { display: none; }
+  .section-head { grid-template-columns: 1fr; gap: 12px; }
+  .hero { padding: 70px 0 50px; }
+  section { padding: 70px 0; }
+  .statusbar-right { display: none; }
+}
+
+/* ── Reveal animation ───────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+</head>
+<body>
+
+<!-- ── Status bar ─────────────────────────── -->
+<div class="statusbar">
+  <div class="container">
+    <span><span class="status-led"></span>EvoXplain Ltd</span>
+    <span class="statusbar-right">arXiv:2512.22240 &nbsp;·&nbsp; UK provisional patent filed &nbsp;·&nbsp; AGPL-3.0</span>
+  </div>
+</div>
+
+<!-- ── Nav ────────────────────────────────── -->
+<div class="container">
+  <nav class="primary">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="7" height="7" stroke="currentColor" stroke-width="1.4"/>
+        <rect x="13" y="2" width="7" height="7" stroke="currentColor" stroke-width="1.4"/>
+        <rect x="2" y="13" width="7" height="7" stroke="currentColor" stroke-width="1.4"/>
+        <rect x="13" y="13" width="7" height="7" stroke="#ffae00" stroke-width="1.4" fill="#ffae00" fill-opacity="0.25"/>
+      </svg>
+      EvoXplain&nbsp;<span style="color: var(--text-faint);">/ Labs</span>
+    </div>
+    <div class="nav-links">
+      <a href="#problem">problem</a>
+      <a href="#approach">approach</a>
+      <a href="#results">results</a>
+      <a href="#applications">applications</a>
+      <a href="#contact">contact</a>
+    </div>
+  </nav>
+</div>
+
+<!-- ── Hero ───────────────────────────────── -->
+<div class="container">
+  <section class="hero" style="border-top: none;">
+    <div class="hero-tag">Falsifiable XAI for high-stakes machine learning</div>
+    <h1>Identifiability in predictions does not imply identifiability in <em>mechanisms</em>.</h1>
+    <p class="hero-sub">EvoXplain detects when a model's explanations are pipeline artefacts rather than mechanistic reality — providing falsifiable evidence for model risk teams in pharma, biotech, financial services, and AI regulation.</p>
+    <div class="hero-actions">
+      <a href="https://arxiv.org/abs/2512.22240" target="_blank" rel="noopener" class="btn btn-primary">Read the preprint <span class="arr">→</span></a>
+      <a href="#contact" class="btn">Commercial enquiries</a>
+    </div>
+  </section>
+</div>
+
+<!-- ── 01 Problem ─────────────────────────── -->
+<section id="problem">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-num">01 <span>/</span> problem</div>
+      <div>
+        <h2 class="section-title">Two models that agree on every prediction can disagree completely on <em>why</em>.</h2>
+        <p class="section-lead">Modern ML pipelines exhibit <em style="font-style:italic;color:var(--accent);font-family:var(--serif)">mechanistic non-identifiability</em>: equally accurate models reached by retraining the same pipeline with different seeds, splits, or hyperparameters can rely on disjoint feature sets to make their decisions. Averaged explanations across reruns produce a <em style="font-style:italic;color:var(--accent);font-family:var(--serif)">ghost</em> — a vector that resembles no mechanism the model actually uses, yet is what regulators, clinicians, and auditors are typically shown.</p>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dots"><span></span><span></span><span></span></div>
+        <span>~/audit/explanation_drift.log</span>
+      </div>
+      <div class="terminal-body"><span class="dim">$</span> <span class="pmt">audit</span> --pipeline tcga_lr_cgrid --seeds 800..899 --lens shap
+
+<span class="dim">[ok]</span>     <span class="ok">predictive accuracy:</span>      0.842 ± 0.011    <span class="dim">stable</span>
+<span class="dim">[ok]</span>     <span class="ok">prediction agreement:</span>     0.971              <span class="dim">stable</span>
+<span class="dim">[!!]</span>     <span class="warn">attribution cosine var:</span>   0.184              <span class="warn">unstable</span>
+<span class="dim">[!!]</span>     <span class="warn">decoupling ratio:</span>         <span class="key">~41×</span>               <span class="warn">predictions stable, mechanisms not</span>
+
+<span class="dim">$</span> <span class="pmt">cluster</span> --within-split --silhouette-min 0.25
+<span class="dim">→</span> k* = <span class="key">3</span> SHAP basins detected
+<span class="dim">→</span> basin centroids encode <span class="warn">disjoint biological pathways</span>
+<span class="dim">→</span> averaged explanation corresponds to <span class="fail">no individual basin</span>
+
+<span class="dim">[verdict]</span>  <span class="fail">ghost average detected — explanation is not mechanistic</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 02 Approach ────────────────────────── -->
+<section id="approach">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-num">02 <span>/</span> approach</div>
+      <div>
+        <h2 class="section-title">A nine-block falsification battery for explanation reliability.</h2>
+        <p class="section-lead">EvoXplain treats the attribution-vector manifold as a topology with reproducible basins that are pipeline-dependent and biologically meaningful. The battery is engineered to <em style="font-style:italic;color:var(--accent);font-family:var(--serif)">kill</em> the multiplicity hypothesis under every plausible null — randomness, sampling noise, model instability, hyperparameter drift, attribution-method choice. Multiplicity that survives is real.</p>
+      </div>
+    </div>
+
+    <div class="battery">
+      <div class="test"><div class="test-id">block 01</div><div class="test-name">Stochasticity & seed robustness</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 02</div><div class="test-name">Sampling noise & null perturbation</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 03</div><div class="test-name">Model instability under retraining</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 04</div><div class="test-name">Hyperparameter sensitivity (factorial ARM-D)</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 05</div><div class="test-name">Attribution-method dependence (multi-lens)</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 06</div><div class="test-name">Cross-pipeline persistence (LR · DNN · XGB · ENet)</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 07</div><div class="test-name">Within-split clustering integrity</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 08</div><div class="test-name">Silhouette thresholding & k=1 null</div><div class="test-status">killed · BC + TCGA</div></div>
+      <div class="test"><div class="test-id">block 09</div><div class="test-name">Semantic content of basin centroids</div><div class="test-status">killed · BC + TCGA</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 03 Results ─────────────────────────── -->
+<section id="results">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-num">03 <span>/</span> results</div>
+      <div>
+        <h2 class="section-title">Validated on TCGA pan-cancer and BRCA subtype benchmarks.</h2>
+        <p class="section-lead">Across a 100×100 design (100 splits × 100 seeds, seeds 800–899) on TCGA pan-cancer and TCGA-BRCA Luminal-vs-Basal, the falsification battery confirmed that explanation multiplicity persists under every null — and that the resulting basins encode distinct biological pathways, not noise.</p>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-value">9<sub>/9</sub></div>
+        <div class="stat-label">falsification blocks killed<br>BC + TCGA pan-cancer</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">~41×</div>
+        <div class="stat-label">decoupling ratio<br>attribution var ÷ accuracy var</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">k*=3</div>
+        <div class="stat-label">SHAP basins on TCGA<br>k*=2 LIME · disjoint pathways</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">+0.85</div>
+        <div class="stat-label">inter-basin cosine<br>BRCA Luminal vs Basal</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 04 Applications ────────────────────── -->
+<section id="applications">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-num">04 <span>/</span> applications</div>
+      <div>
+        <h2 class="section-title">Built for environments where the wrong explanation has consequences.</h2>
+        <p class="section-lead">EvoXplain is designed for organisations where ML decisions are subject to scientific scrutiny, regulatory audit, or legal challenge — and where averaged or single-seed explanations are insufficient evidence.</p>
+      </div>
+    </div>
+
+    <div class="cases">
+      <div class="case">
+        <div class="case-num">/ 01</div>
+        <h3>Pharma &amp; Biotech</h3>
+        <p>Detect when biomarker attributions, drug-target rankings, or patient-stratification features are pipeline artefacts before they enter a study design. Distinguish reproducible biological signal from explanation drift across retraining runs.</p>
+        <div class="case-reg">aligned with: FDA AI/ML-based SaMD action plan · GxP model documentation</div>
+      </div>
+      <div class="case">
+        <div class="case-num">/ 02</div>
+        <h3>Financial Services</h3>
+        <p>Provide model risk teams with falsifiable evidence that explanation features are mechanistically grounded — not artefacts of the training pipeline. Integrates into model validation, challenger reviews, and adverse-action documentation.</p>
+        <div class="case-reg">aligned with: SR 11-7 model risk management · EBA model governance · ECOA</div>
+      </div>
+      <div class="case">
+        <div class="case-num">/ 03</div>
+        <h3>Policy &amp; Regulation</h3>
+        <p>Equip auditors and conformity assessment bodies with a reproducible test for whether claimed explanations of high-risk AI systems are robust under retraining — addressing the gap between transparency obligations and post-hoc XAI fragility.</p>
+        <div class="case-reg">aligned with: EU AI Act art. 13/14 · ISO/IEC 42001 · NIST AI RMF</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 05 Contact ─────────────────────────── -->
+<section id="contact">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-num">05 <span>/</span> contact</div>
+      <div>
+        <h2 class="section-title">Open research. Commercial deployments by enquiry.</h2>
+        <p class="section-lead">EvoXplain is released under AGPL-3.0 and protected by a UK provisional patent. The codebase, falsification battery, and reproducibility scripts are open. Commercial deployment, dual-licensing, and bespoke integration are handled through direct enquiry.</p>
+      </div>
+    </div>
+
+    <div class="contact-grid">
+      <div class="contact-card">
+        <h4>RESEARCH &amp; OPEN SOURCE</h4>
+        <p>The framework, preprint, and falsification harness are publicly available. Issues, replications, and academic collaborations are welcome.</p>
+        <a href="https://arxiv.org/abs/2512.22240" target="_blank" rel="noopener" class="email">arxiv.org/abs/2512.22240 →</a>
+      </div>
+      <div class="contact-card">
+        <h4>COMMERCIAL &amp; LICENSING</h4>
+        <p>Integration into regulated ML pipelines, dual-licensing for commercial use, model-risk consulting, and conformity-assessment partnerships.</p>
+        <a href="mailto:bensmail.chama@gmail.com" class="email">bensmail.chama@gmail.com →</a>
+      </div>
+    </div>
+
+    <div class="legal-notice">
+      <strong>Legal notice.</strong> EvoXplain is the subject of a UK provisional patent application (sole inventor: Chama Bensmail). The framework is licensed under AGPL-3.0; commercial use that does not satisfy AGPL-3.0 obligations requires a separate licence. EvoXplain Ltd (in formation, England &amp; Wales). Affiliated research conducted with the H-XAI Lab, University of Hertfordshire.
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>EvoXplain Ltd</h4>
+        <p>Falsifiable XAI infrastructure for high-stakes machine learning. Founded by Chama Bensmail. United Kingdom.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Research</h4>
+        <a href="https://arxiv.org/abs/2512.22240" target="_blank" rel="noopener">Preprint (arXiv)</a>
+        <a href="#problem">Problem</a>
+        <a href="#approach">Approach</a>
+        <a href="#results">Results</a>
+      </div>
+      <div class="footer-col">
+        <h4>Applications</h4>
+        <a href="#applications">Pharma &amp; Biotech</a>
+        <a href="#applications">Financial Services</a>
+        <a href="#applications">Policy &amp; Regulation</a>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <a href="mailto:bensmail.chama@gmail.com">Email</a>
+        <a href="#contact">Licensing</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 EvoXplain Ltd · AGPL-3.0 · UK provisional patent filed</span>
+      <span>v0.1 · evoxplain.com</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Reveal on scroll
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('section, .terminal, .stats-grid, .battery, .cases, .contact-grid')
+  .forEach(el => { el.classList.add('reveal'); io.observe(el); });
+
+// Smooth-scroll offset for sticky bar already handled by scroll-behavior
+</script>
+
+</body>
+</html>
